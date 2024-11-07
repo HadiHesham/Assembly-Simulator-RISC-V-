@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "../../Documents/GitHub/Assembly-Simulator-RISC-V-"
+		},
+		{
+			"path": "../node_modules"
+		},
+		{
+			"path": "../public"
+		},
+		{
+			"path": "."
+		}
+	],
+	"settings": {}
+}
