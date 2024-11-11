@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import "./App.css";
 
 function App() {
-  const [Code, setCode] = useState([]);
+  const [Code, setCode] = useState<String[]>([]);
   const [text1, setText1] = useState("");
   const [text2, setText2] = useState("");
   const [text3, setText3] = useState("");
@@ -13,11 +13,11 @@ function App() {
   const [RanLine, setRanLine] = useState<String[]>([]);
   const [start, setStart] = useState(0);
   let timedOut = false;
-  const convertToBinary = (decimalNumber) => {
+  const convertToBinary = (decimalNumber: string) => {
     if (decimalNumber === "") return "0".repeat(32);
     return (parseInt(decimalNumber, 10) >>> 0).toString(2).padStart(32, "0");
   };
-  const binaryToDecimal = (binaryString) => {
+  const binaryToDecimal = (binaryString: string) => {
     return parseInt(binaryString, 2);
   };
   function sleep(ms: number | undefined) {
@@ -574,6 +574,87 @@ function App() {
 
             setRegistersContent(newRegistersContent); // Update state
           }
+          if (
+            instruct === "lh" &&
+            filtered_registers[0].replace("x", "") !== "0"
+          ) {
+            const rd = filtered_registers[0].replace("x", "").trim(); // Remove 'x' from rd
+            const rs1 = filtered_registers[1]
+              .replace("x", "")
+              .trim()
+              .replace(")", ""); // Remove 'x' from rs1
+            const rs1split = rs1.split("(");
+
+            const offset = Number(rs1split[0].trim()); // Convert offset to number
+            const address = Number(rs1split[1].trim()); // Convert address part to number
+
+            // Calculate base address for memory access
+            const baseAddress = RegistersContent[address] + offset * 2;
+
+            // Fetch 8-bit chunks in little-endian order (16 bits total)
+            const key1 = String(baseAddress + 1);
+            const key0 = String(baseAddress);
+
+            // Retrieve each chunk from memoryContents and concatenate in little-endian order
+            const concatenatedBinary =
+              (memoryContents.get(key1) || "00000000") +
+              (memoryContents.get(key0) || "00000000");
+
+            console.log("Concatenated Binary (Half-Word):", concatenatedBinary);
+
+            // Sign-extend the 16-bit value to 32 bits
+            let decimalValue = parseInt(concatenatedBinary, 2);
+            if (concatenatedBinary[0] === "1") {
+              // If the sign bit is 1, extend the sign to 32 bits
+              decimalValue = decimalValue | 0xffff0000;
+            }
+            console.log("Decimal Value (Sign-Extended):", decimalValue);
+
+            // Update the register with the loaded value
+            const newRegistersContent = [...RegistersContent];
+            newRegistersContent[Number(rd)] = decimalValue;
+
+            setRegistersContent(newRegistersContent); // Update state
+          }
+          if (
+            instruct === "lhu" &&
+            filtered_registers[0].replace("x", "") !== "0"
+          ) {
+            const rd = filtered_registers[0].replace("x", "").trim(); // Remove 'x' from rd
+            const rs1 = filtered_registers[1]
+              .replace("x", "")
+              .trim()
+              .replace(")", ""); // Remove 'x' from rs1
+            const rs1split = rs1.split("(");
+
+            const offset = Number(rs1split[0].trim()); // Convert offset to number
+            const address = Number(rs1split[1].trim()); // Convert address part to number
+
+            // Calculate base address for memory access
+            const baseAddress = RegistersContent[address] + offset * 2;
+
+            // Fetch 8-bit chunks in little-endian order (16 bits total)
+            const key1 = String(baseAddress + 1);
+            const key0 = String(baseAddress);
+
+            // Retrieve each chunk from memoryContents and concatenate in little-endian order
+            const concatenatedBinary =
+              (memoryContents.get(key1) || "00000000") +
+              (memoryContents.get(key0) || "00000000");
+
+            console.log("Concatenated Binary (Half-Word):", concatenatedBinary);
+
+            // Convert the 16-bit value to decimal (unsigned)
+            let decimalValue = parseInt(concatenatedBinary, 2);
+
+            console.log("Decimal Value (Unsigned):", decimalValue);
+
+            // Update the register with the loaded value
+            const newRegistersContent = [...RegistersContent];
+            newRegistersContent[Number(rd)] = decimalValue;
+
+            setRegistersContent(newRegistersContent); // Update state
+          }
 
           if (
             instruct === "sw" &&
@@ -640,6 +721,170 @@ function App() {
               return updatedMap;
             });
           }
+          if (
+            instruct === "sh" &&
+            filtered_registers[0].replace("x", "") != "0"
+          ) {
+            const rs1 = filtered_registers[0].replace("x", "").trim(); // Remove 'x' from rs1 (source register)
+            const rd = filtered_registers[1]
+              .replace("x", "")
+              .trim()
+              .replace(")", ""); // Remove 'x' from rd and closing parenthesis
+            const rdf = rd.split("(")[1]; // Extract address from `rd`
+            const offset = filtered_registers[1].substring(
+              0,
+              filtered_registers[1].indexOf("(")
+            ); // Extract offset from the `rd` value
+
+            console.log(rdf);
+            console.log(rs1);
+            console.log(offset);
+
+            let binary = convertToBinary(String(RegistersContent[Number(rs1)])); // Convert the value in `rs1` to binary
+
+            // Only store the lower 16 bits for `sh` instruction (16-bit value)
+            const halfWord = [
+              binary.substring(32, 24), // Higher 8 bits of the half-word
+              binary.substring(23, 16), // Lower 8 bits of the half-word
+            ];
+            console.log(binary);
+            // Update memory with the 16-bit half-word in little-endian order
+            setMemoryContents((prev) => {
+              const updatedMap = new Map(prev);
+
+              // Store the two 8-bit chunks for the half-word in memory at the calculated address
+              updatedMap.set(
+                String(
+                  Number(
+                    String(RegistersContent[Number(rdf)] + Number(offset) * 2)
+                  )
+                ),
+                halfWord[0] // Store the lower 8 bits first (little-endian)
+              );
+              updatedMap.set(
+                String(
+                  Number(
+                    String(
+                      RegistersContent[Number(rdf)] + Number(offset) * 2 + 1
+                    )
+                  )
+                ),
+                halfWord[1] // Store the higher 8 bits second (little-endian)
+              );
+
+              return updatedMap;
+            });
+          }
+          if (
+            instruct === "lb" &&
+            filtered_registers[0].replace("x", "") !== "0"
+          ) {
+            const rd = filtered_registers[0].replace("x", "").trim(); // Remove 'x' from rd
+            const rs1 = filtered_registers[1]
+              .replace("x", "")
+              .trim()
+              .replace(")", ""); // Remove 'x' from rs1
+            const rs1split = rs1.split("(");
+
+            const offset = Number(rs1split[0].trim()); // Convert offset to number
+            const address = Number(rs1split[1].trim()); // Convert address part to number
+
+            // Calculate base address for memory access
+            const baseAddress = RegistersContent[address] + offset;
+
+            // Fetch 8-bit byte from memory
+            const key = String(baseAddress);
+            const byteBinary = memoryContents.get(key) || "00000000";
+
+            console.log("Byte Binary:", byteBinary);
+
+            // Convert binary string to decimal and sign-extend if needed
+            let decimalValue = parseInt(byteBinary, 2);
+            if (byteBinary[0] === "1") {
+              // If the sign bit is 1, extend the sign to 32 bits
+              decimalValue = decimalValue | 0xffffff00;
+            }
+            console.log("Decimal Value (Sign-Extended):", decimalValue);
+
+            // Update the register with the loaded value
+            const newRegistersContent = [...RegistersContent];
+            newRegistersContent[Number(rd)] = decimalValue;
+
+            setRegistersContent(newRegistersContent); // Update state
+          }
+          if (
+            instruct === "lbu" &&
+            filtered_registers[0].replace("x", "") !== "0"
+          ) {
+            const rd = filtered_registers[0].replace("x", "").trim(); // Remove 'x' from rd
+            const rs1 = filtered_registers[1]
+              .replace("x", "")
+              .trim()
+              .replace(")", ""); // Remove 'x' from rs1
+            const rs1split = rs1.split("(");
+
+            const offset = Number(rs1split[0].trim()); // Convert offset to number
+            const address = Number(rs1split[1].trim()); // Convert address part to number
+
+            // Calculate base address for memory access
+            const baseAddress = RegistersContent[address] + offset;
+
+            // Fetch 8-bit byte from memory
+            const key = String(baseAddress);
+            const byteBinary = memoryContents.get(key) || "00000000";
+
+            console.log("Byte Binary:", byteBinary);
+
+            // Convert binary string to decimal (unsigned)
+            let decimalValue = parseInt(byteBinary, 2);
+
+            // No sign-extension needed for unsigned value; directly assign the decimal value
+            console.log("Decimal Value (Unsigned):", decimalValue);
+
+            // Update the register with the loaded value
+            const newRegistersContent = [...RegistersContent];
+            newRegistersContent[Number(rd)] = decimalValue;
+
+            setRegistersContent(newRegistersContent); // Update state
+          }
+
+          if (
+            instruct === "sb" &&
+            filtered_registers[0].replace("x", "") !== "0"
+          ) {
+            const rs1 = filtered_registers[0].replace("x", "").trim(); // Remove 'x' from rs1
+            const rd = filtered_registers[1]
+              .replace("x", "")
+              .trim()
+              .replace(")", ""); // Remove 'x' from rd
+            const rdf = rd.split("(")[1];
+            const offset = filtered_registers[1].substring(
+              0,
+              filtered_registers[1].indexOf("(")
+            );
+
+            console.log("Storing Byte, Address Register:", rdf);
+            console.log("Storing Byte, Source Register:", rs1);
+            console.log("Offset:", offset);
+
+            // Get the byte to store
+            let binary = convertToBinary(String(RegistersContent[Number(rs1)]));
+            const byteToStore = binary.substring(24, 32); // Get the least significant 8 bits (1 byte)
+
+            setMemoryContents((prev) => {
+              const updatedMap = new Map(prev);
+
+              // Calculate memory address
+              const address =
+                Number(RegistersContent[Number(rdf)]) + Number(offset);
+
+              // Store the byte in memory
+              updatedMap.set(String(address), byteToStore);
+
+              return updatedMap;
+            });
+          }
+
           if (
             instruct === "lui" &&
             filtered_registers[0].replace("x", "") != "0"
@@ -913,7 +1158,6 @@ function App() {
       <div style={{ display: "flex", gap: 20 }}>
         <div>
           <textarea
-            type="text"
             rows={20}
             onChange={(e) => setText1(e.target.value)}
           ></textarea>
