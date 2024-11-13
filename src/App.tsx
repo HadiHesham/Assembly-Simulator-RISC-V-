@@ -84,6 +84,7 @@ function App() {
     let labels = [];
     let i = 0;
     while (i < Lines.length && i != Lines.length + 5) {
+      setRanLine([...RanLine, start + i * 4 + ": " + Lines[i]]);
       let instruct;
       const Line = Lines[i].split(/\s+/);
       {
@@ -547,7 +548,7 @@ function App() {
             const address = Number(rs1split[1].trim()); // Convert address part to number
 
             // Calculate base address for memory access
-            const baseAddress = RegistersContent[address] + offset * 4;
+            const baseAddress = RegistersContent[address] + offset;
 
             // Fetch 8-bit chunks in little-endian order
             const key3 = String(baseAddress + 3);
@@ -589,7 +590,7 @@ function App() {
             const address = Number(rs1split[1].trim()); // Convert address part to number
 
             // Calculate base address for memory access
-            const baseAddress = RegistersContent[address] + offset * 2;
+            const baseAddress = RegistersContent[address] + offset;
 
             // Fetch 8-bit chunks in little-endian order (16 bits total)
             const key1 = String(baseAddress + 1);
@@ -628,24 +629,31 @@ function App() {
             const rs1split = rs1.split("(");
 
             const offset = Number(rs1split[0].trim()); // Convert offset to number
-            const address = Number(rs1split[1].trim()); // Convert address part to number
+            const rs1Register = Number(rs1split[1].trim()); // Get the register number from rs1
 
-            // Calculate base address for memory access
-            const baseAddress = RegistersContent[address] + offset * 2;
+            // Calculate the base address for memory access
+            const baseAddress = RegistersContent[rs1Register] + offset;
 
             // Fetch 8-bit chunks in little-endian order (16 bits total)
-            const key1 = String(baseAddress + 1);
-            const key0 = String(baseAddress);
+            const key0 = String(baseAddress); // Lower 8 bits
+            const key1 = String(baseAddress + 1); // Higher 8 bits
 
-            // Retrieve each chunk from memoryContents and concatenate in little-endian order
-            const concatenatedBinary =
-              (memoryContents.get(key1) || "00000000") +
-              (memoryContents.get(key0) || "00000000");
+            // Retrieve each chunk from memoryContents with padding for 8 bits
+            const lowerByte = (memoryContents.get(key0) || "00000000").padStart(
+              8,
+              "0"
+            );
+            const higherByte = (
+              memoryContents.get(key1) || "00000000"
+            ).padStart(8, "0");
+
+            // Concatenate in little-endian order (lowerByte first)
+            const concatenatedBinary = higherByte + lowerByte;
 
             console.log("Concatenated Binary (Half-Word):", concatenatedBinary);
 
             // Convert the 16-bit value to decimal (unsigned)
-            let decimalValue = parseInt(concatenatedBinary, 2);
+            const decimalValue = parseInt(concatenatedBinary, 2);
 
             console.log("Decimal Value (Unsigned):", decimalValue);
 
@@ -688,16 +696,14 @@ function App() {
               // Set the array of chunks under the key `text2`
               updatedMap.set(
                 String(
-                  Number(
-                    String(RegistersContent[Number(rdf)] + Number(offset) * 4)
-                  )
+                  Number(String(RegistersContent[Number(rdf)] + Number(offset)))
                 ),
                 chunks[3]
               );
               updatedMap.set(
                 String(
                   Number(
-                    String(RegistersContent[Number(rdf)] + Number(offset) * 4)
+                    String(RegistersContent[Number(rdf)] + Number(offset))
                   ) + 1
                 ),
                 chunks[2]
@@ -705,7 +711,7 @@ function App() {
               updatedMap.set(
                 String(
                   Number(
-                    String(RegistersContent[Number(rdf)] + Number(offset) * 4)
+                    String(RegistersContent[Number(rdf)] + Number(offset))
                   ) + 2
                 ),
                 chunks[1]
@@ -713,7 +719,7 @@ function App() {
               updatedMap.set(
                 String(
                   Number(
-                    String(RegistersContent[Number(rdf)] + Number(offset) * 4)
+                    String(RegistersContent[Number(rdf)] + Number(offset))
                   ) + 3
                 ),
                 chunks[0]
@@ -730,51 +736,42 @@ function App() {
               .replace("x", "")
               .trim()
               .replace(")", ""); // Remove 'x' from rd and closing parenthesis
-            const rdf = rd.split("(")[1]; // Extract address from `rd`
+            const rdf = rd.split("(")[1]; // Extract base register from `rd`
             const offset = filtered_registers[1].substring(
               0,
               filtered_registers[1].indexOf("(")
-            ); // Extract offset from the `rd` value
+            ); // Extract offset from `rd`
 
             console.log(rdf);
             console.log(rs1);
             console.log(offset);
 
-            let binary = convertToBinary(String(RegistersContent[Number(rs1)])); // Convert the value in `rs1` to binary
+            // Convert the value in `rs1` to binary and pad to 32 bits
+            let binary = convertToBinary(String(RegistersContent[Number(rs1)]));
 
             // Only store the lower 16 bits for `sh` instruction (16-bit value)
             const halfWord = [
-              binary.substring(32, 24), // Higher 8 bits of the half-word
-              binary.substring(23, 16), // Lower 8 bits of the half-word
+              binary.substring(16, 24), // Higher 8 bits of the half-word
+              binary.substring(24, 32), // Lower 8 bits of the half-word
             ];
             console.log(binary);
+
+            // Calculate the final address as a number
+            const baseAddress = Number(RegistersContent[Number(rdf)]);
+            const address = baseAddress + Number(offset);
+
             // Update memory with the 16-bit half-word in little-endian order
             setMemoryContents((prev) => {
               const updatedMap = new Map(prev);
 
-              // Store the two 8-bit chunks for the half-word in memory at the calculated address
-              updatedMap.set(
-                String(
-                  Number(
-                    String(RegistersContent[Number(rdf)] + Number(offset) * 2)
-                  )
-                ),
-                halfWord[0] // Store the lower 8 bits first (little-endian)
-              );
-              updatedMap.set(
-                String(
-                  Number(
-                    String(
-                      RegistersContent[Number(rdf)] + Number(offset) * 2 + 1
-                    )
-                  )
-                ),
-                halfWord[1] // Store the higher 8 bits second (little-endian)
-              );
+              // Store the two 8-bit chunks for the half-word in memory at consecutive addresses
+              updatedMap.set(String(address), halfWord[1]); // Store the lower 8 bits first (little-endian)
+              updatedMap.set(String(address + 1), halfWord[0]); // Store the higher 8 bits second (little-endian)
 
               return updatedMap;
             });
           }
+
           if (
             instruct === "lb" &&
             filtered_registers[0].replace("x", "") !== "0"
@@ -1123,11 +1120,34 @@ function App() {
               setRegistersContent(newRegistersContent); // Update state
             }
           }
+          if (
+            instruct === "sltiu" &&
+            filtered_registers[0].replace("x", "") != "0"
+          ) {
+            const rd = filtered_registers[0].replace("x", "").trim(); // remove 'x' from rd
+            const rs1 = filtered_registers[1].replace("x", "").trim(); // remove 'x' from rs1
+            let immediateValue = Number(filtered_registers[2].trim()); // Convert to number
+            const rdIndex = Number(rd); // Use rd as index directly
+            const rs1Index = Number(rs1); // Use rs1 as index directly
+            const newRegistersContent = RegistersContent;
+            let temp1 = RegistersContent[Number(rs1)];
+            if (RegistersContent[Number(rs1)] < 0)
+              temp1 = RegistersContent[Number(rs1)] * -1;
+            if (immediateValue < 0) {
+              immediateValue = immediateValue * -1;
+            }
+            if (Number(RegistersContent[rs1Index]) < Number(immediateValue)) {
+              newRegistersContent[rdIndex] = 1;
+              setRegistersContent(newRegistersContent); // Update state
+            } else {
+              newRegistersContent[rdIndex] = 0;
+              setRegistersContent(newRegistersContent); // Update state
+            }
+          }
         } catch (error) {
           // Handle any potential errors that may arise
         }
       }
-      setRanLine([...RanLine, start + i * 4 + ": " + Lines[i]]);
       i++;
       console.log(memoryContents);
       await sleep(1000);
