@@ -17,6 +17,14 @@ function App() {
     if (decimalNumber === "") return "0".repeat(32);
     return (parseInt(decimalNumber, 10) >>> 0).toString(2).padStart(32, "0");
   };
+  const convertToHexadecimal = (decimal: number) => {
+    return decimal.toString(16).toUpperCase();
+  };
+
+  // Function to convert decimal to binary
+  const convertToBinary2 = (decimal: number) => {
+    return decimal.toString(2);
+  };
   const binaryToDecimal = (binaryString: string) => {
     return parseInt(binaryString, 2);
   };
@@ -37,6 +45,26 @@ function App() {
   const [RegistersContent, setRegistersContent] = useState<number[]>(
     Array(32).fill(0)
   ); // Updated to size 32
+  let RegistersContentH: (
+    | string
+    | number
+    | boolean
+    | React.ReactElement<any, string | React.JSXElementConstructor<any>>
+    | Iterable<React.ReactNode>
+    | React.ReactPortal
+    | null
+    | undefined
+  )[] = [];
+  let RegistersContentB: (
+    | string
+    | number
+    | boolean
+    | React.ReactElement<any, string | React.JSXElementConstructor<any>>
+    | Iterable<React.ReactNode>
+    | React.ReactPortal
+    | null
+    | undefined
+  )[] = [];
   const [memoryContents, setMemoryContents] = useState(
     new Map<string, string>()
   );
@@ -487,6 +515,46 @@ function App() {
 
             newRegistersContent[rdIndex] =
               newRegistersContent[rs1Index] * newRegistersContent[rs2Index]; // Correctly add the immediate value
+
+            setRegistersContent(newRegistersContent); // Update state
+          }
+          if (
+            instruct === "mulh" &&
+            filtered_registers[0].replace("x", "") != "0"
+          ) {
+            const rd = filtered_registers[0].replace("x", ""); // remove 'x' from rd
+            const rs1 = filtered_registers[1].replace("x", ""); // remove 'x' from rs1
+            const rs2 = filtered_registers[2].replace("x", ""); // Convert to number
+            const rdIndex = Number(rd); // Use rd as index directly
+            const rs1Index = Number(rs1); // Use rs1 as index directly
+            const rs2Index = Number(rs2);
+            // Ensure indices are valid
+
+            const newRegistersContent = RegistersContent;
+
+            newRegistersContent[rdIndex] =
+              (newRegistersContent[rs1Index] * newRegistersContent[rs2Index]) >>
+              32; // Correctly add the immediate value
+
+            setRegistersContent(newRegistersContent); // Update state
+          }
+          if (
+            instruct === "mulhu" &&
+            filtered_registers[0].replace("x", "") != "0"
+          ) {
+            const rd = filtered_registers[0].replace("x", ""); // remove 'x' from rd
+            const rs1 = filtered_registers[1].replace("x", ""); // remove 'x' from rs1
+            const rs2 = filtered_registers[2].replace("x", ""); // Convert to number
+            const rdIndex = Number(rd); // Use rd as index directly
+            let temp1 = RegistersContent[Number(rs1)];
+            let temp2 = RegistersContent[Number(rs2)];
+            if (RegistersContent[Number(rs1)] < 0)
+              temp1 = RegistersContent[Number(rs1)] * -1;
+            if (RegistersContent[Number(rs2)] < 0)
+              temp2 = RegistersContent[Number(rs2)] * -1;
+            const newRegistersContent = RegistersContent;
+
+            newRegistersContent[rdIndex] = (temp1 * temp2) >> 32; // Correctly add the immediate value
 
             setRegistersContent(newRegistersContent); // Update state
           }
@@ -1178,25 +1246,27 @@ function App() {
         </div>
         <div>
           <h3>Registers Content:</h3>
-          {
-            <div>
-              {RegistersContent.map(
-                (register, index) =>
-                  register != 0 && (
-                    <div key={index}>
-                      x{index}: {register}
-                    </div>
-                  )
-              )}
-            </div>
-          }
+          <div>
+            {RegistersContent.map((register, index) =>
+              register !== 0 ? (
+                <div key={index}>
+                  <strong>x{index}</strong>: Decimal: {register}, Binary:{" "}
+                  {convertToBinary2(register)}, Hexadecimal:{" "}
+                  {convertToHexadecimal(register)}
+                </div>
+              ) : null
+            )}
+          </div>
         </div>
+
         <div>
           <h3>Memory Contents:</h3>
           <div>
             {Array.from(memoryContents.entries()).map(([key, value]) => (
               <div>
-                Address {key}: {value}
+                <strong>Address {key}</strong>: Decimal:{" "}
+                {binaryToDecimal(value)}, Binary: {value}, Hexadecimal:{" "}
+                {convertToHexadecimal(binaryToDecimal(value))}
               </div>
             ))}
           </div>
