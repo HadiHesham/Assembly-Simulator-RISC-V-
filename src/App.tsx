@@ -77,6 +77,7 @@ function App() {
     setMemoryContents(new Map<string, string>());
   };
   const SetCode = async () => {
+    init();
     const Lines = text1.split("\n");
     setCode(Lines);
     let instructs = [];
@@ -896,7 +897,7 @@ function App() {
           ) {
             const rd = filtered_registers[0].replace("x", "").trim(); // remove 'x' from rd
             const immediate = filtered_registers[1].trim();
-            RegistersContent[Number(rd)] = (Number(immediate) << 12) + i + 1;
+            RegistersContent[Number(rd)] = (Number(immediate) << 12) + i;
           }
           if (
             instruct === "jal" &&
@@ -904,10 +905,10 @@ function App() {
           ) {
             const rd = filtered_registers[0].replace("x", "").trim(); // remove 'x' from rd
             const label = filtered_registers[1].trim();
-            let j = i + 1;
+            let j = 0;
             let found = true;
             while (j < Lines.length && found) {
-              if (Lines[j].includes(label)) {
+              if (Lines[j].includes(label) && j != i) {
                 RegistersContent[Number(rd)] = i + 1;
                 i = j - 1;
                 found = false;
@@ -916,12 +917,14 @@ function App() {
             }
           }
           if (instruct === "jalr") {
+            const rs1 = filtered_registers[0].replace("x", "");
             const rd = filtered_registers[1]
               .replace("x", "")
               .trim()
               .replace(")", ""); // remove 'x' from rs1
             const rdf = rd.split("(")[1];
             const offset = filtered_registers[1][0];
+            RegistersContent[Number(rs1)] = i + 1;
             i = RegistersContent[Number(rdf)] + Number(offset) - 1;
           }
           if (instruct === "beq") {
@@ -931,10 +934,10 @@ function App() {
             if (
               RegistersContent[Number(rs1)] == RegistersContent[Number(rs2)]
             ) {
-              let j = i + 1;
+              let j = 0;
               let found = true;
               while (j < Lines.length && found) {
-                if (Lines[j].includes(label)) {
+                if (Lines[j].includes(label) && j != i) {
                   i = j - 1;
                   found = false;
                 }
@@ -949,10 +952,10 @@ function App() {
             if (
               RegistersContent[Number(rs1)] != RegistersContent[Number(rs2)]
             ) {
-              let j = i + 1;
+              let j = 0;
               let found = true;
               while (j < Lines.length && found) {
-                if (Lines[j].includes(label)) {
+                if (Lines[j].includes(label) && j != i) {
                   i = j - 1;
                   found = false;
                 }
@@ -965,10 +968,10 @@ function App() {
             const rs2 = filtered_registers[1].replace("x", "").trim(); // remove 'x' from rd
             const label = filtered_registers[2].trim();
             if (RegistersContent[Number(rs1)] < RegistersContent[Number(rs2)]) {
-              let j = i + 1;
+              let j = 0;
               let found = true;
               while (j < Lines.length && found) {
-                if (Lines[j].includes(label)) {
+                if (Lines[j].includes(label) && j != i) {
                   i = j - 1;
                   found = false;
                 }
@@ -981,10 +984,10 @@ function App() {
             const rs2 = filtered_registers[1].replace("x", "").trim(); // remove 'x' from rd
             const label = filtered_registers[2].trim();
             if (RegistersContent[Number(rs1)] > RegistersContent[Number(rs2)]) {
-              let j = i + 1;
+              let j = 0;
               let found = true;
               while (j < Lines.length && found) {
-                if (Lines[j].includes(label)) {
+                if (Lines[j].includes(label) && j != i) {
                   i = j - 1;
                   found = false;
                 }
@@ -1003,10 +1006,10 @@ function App() {
             if (RegistersContent[Number(rs2)] < 0)
               temp2 = RegistersContent[Number(rs2)] * -1;
             if (temp1 < temp2) {
-              let j = i + 1;
+              let j = 0;
               let found = true;
               while (j < Lines.length && found) {
-                if (Lines[j].includes(label)) {
+                if (Lines[j].includes(label) && j != i) {
                   i = j - 1;
                   found = false;
                 }
@@ -1025,10 +1028,10 @@ function App() {
             if (RegistersContent[Number(rs2)] < 0)
               temp2 = RegistersContent[Number(rs2)] * -1;
             if (temp1 > temp2) {
-              let j = i + 1;
+              let j = 0;
               let found = true;
               while (j < Lines.length && found) {
-                if (Lines[j].includes(label)) {
+                if (Lines[j].includes(label) && j != i) {
                   i = j - 1;
                   found = false;
                 }
@@ -1120,30 +1123,6 @@ function App() {
               setRegistersContent(newRegistersContent); // Update state
             }
           }
-          if (
-            instruct === "sltiu" &&
-            filtered_registers[0].replace("x", "") != "0"
-          ) {
-            const rd = filtered_registers[0].replace("x", "").trim(); // remove 'x' from rd
-            const rs1 = filtered_registers[1].replace("x", "").trim(); // remove 'x' from rs1
-            let immediateValue = Number(filtered_registers[2].trim()); // Convert to number
-            const rdIndex = Number(rd); // Use rd as index directly
-            const rs1Index = Number(rs1); // Use rs1 as index directly
-            const newRegistersContent = RegistersContent;
-            let temp1 = RegistersContent[Number(rs1)];
-            if (RegistersContent[Number(rs1)] < 0)
-              temp1 = RegistersContent[Number(rs1)] * -1;
-            if (immediateValue < 0) {
-              immediateValue = immediateValue * -1;
-            }
-            if (Number(RegistersContent[rs1Index]) < Number(immediateValue)) {
-              newRegistersContent[rdIndex] = 1;
-              setRegistersContent(newRegistersContent); // Update state
-            } else {
-              newRegistersContent[rdIndex] = 0;
-              setRegistersContent(newRegistersContent); // Update state
-            }
-          }
         } catch (error) {
           // Handle any potential errors that may arise
         }
@@ -1152,6 +1131,7 @@ function App() {
       console.log(memoryContents);
       await sleep(1000);
     }
+    console.log(RegistersContent);
   };
   return (
     <div>
