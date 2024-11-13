@@ -638,7 +638,7 @@ function App() {
             console.log("Decimal Value:", decimalValue);
 
             // Update the register with the loaded value
-            const newRegistersContent = [...RegistersContent];
+            const newRegistersContent = RegistersContent;
             newRegistersContent[Number(rd)] = decimalValue;
 
             setRegistersContent(newRegistersContent); // Update state
@@ -675,7 +675,7 @@ function App() {
             console.log("Decimal Value (Sign-Extended):", decimalValue);
 
             // Update the register with the loaded value
-            const newRegistersContent = [...RegistersContent];
+            const newRegistersContent = RegistersContent;
             newRegistersContent[Number(rd)] = decimalValue;
 
             setRegistersContent(newRegistersContent); // Update state
@@ -716,7 +716,7 @@ function App() {
             console.log("Decimal Value (Unsigned):", decimalValue);
 
             // Update the register with the loaded value
-            const newRegistersContent = [...RegistersContent];
+            const newRegistersContent = RegistersContent;
             newRegistersContent[Number(rd)] = decimalValue;
 
             setRegistersContent(newRegistersContent); // Update state
@@ -814,7 +814,7 @@ function App() {
             console.log("Decimal Value (Sign-Extended):", decimalValue);
 
             // Update the register with the loaded value
-            const newRegistersContent = [...RegistersContent];
+            const newRegistersContent = RegistersContent;
             newRegistersContent[Number(rd)] = decimalValue;
 
             setRegistersContent(newRegistersContent); // Update state
@@ -849,7 +849,7 @@ function App() {
             console.log("Decimal Value (Unsigned):", decimalValue);
 
             // Update the register with the loaded value
-            const newRegistersContent = [...RegistersContent];
+            const newRegistersContent = RegistersContent;
             newRegistersContent[Number(rd)] = decimalValue;
 
             setRegistersContent(newRegistersContent); // Update state
@@ -1127,9 +1127,9 @@ function App() {
       }
       i++;
       await sleep(1000);
+      console.log(RegistersContent);
     }
     setMemoryContents(mem);
-    console.log(memoryContents);
   };
   return (
     <div>
